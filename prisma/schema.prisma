@@ -1,13 +1,169 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  DEVELOPER
+}
+
+enum TicketStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketType {
+  BUG
+  FEATURE
+  TECHNICAL
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  AUTO_ASSIGN
+  RESTORE
+  ESCALATE
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  email     String   @unique
+  fullName  String
+  password  String
+  role      Role     @default(DEVELOPER)
+  createdAt DateTime @default(now())
+
+  ownedProjects   Project[]       @relation("ProjectOwner")
+  assignedTickets Ticket[]        @relation("TicketAssignee")
+  comments        Comment[]
+  mentions        Mention[]
+  tokenDenyList   TokenDenyList[]
+  auditLogs       AuditLog[]
+}
+
+model Project {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  ownerId     Int
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+
+  owner   User     @relation("ProjectOwner", fields: [ownerId], references: [id])
+  tickets Ticket[]
+}
+
+model Ticket {
+  id          Int            @id @default(autoincrement())
+  title       String
+  description String?
+  status      TicketStatus   @default(TODO)
+  priority    TicketPriority @default(MEDIUM)
+  type        TicketType
+  projectId   Int
+  assigneeId  Int?
+  dueDate     DateTime?
+  isOverdue   Boolean        @default(false)
+  lockedBy    Int?
+  lockedAt    DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+
+  project     Project            @relation(fields: [projectId], references: [id])
+  assignee    User?              @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  comments    Comment[]
+  attachments Attachment[]
+  blockedBy   TicketDependency[] @relation("BlockedTicket")
+  blocking    TicketDependency[] @relation("BlockerTicket")
+}
+
+model TicketDependency {
+  id        Int @id @default(autoincrement())
+  ticketId  Int
+  blockerId Int
+
+  ticket  Ticket @relation("BlockedTicket", fields: [ticketId], references: [id])
+  blocker Ticket @relation("BlockerTicket", fields: [blockerId], references: [id])
+
+  @@unique([ticketId, blockerId])
+}
+
+model Comment {
+  id        Int       @id @default(autoincrement())
+  content   String
+  ticketId  Int
+  authorId  Int
+  lockedBy  Int?
+  lockedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  ticket   Ticket    @relation(fields: [ticketId], references: [id])
+  author   User      @relation(fields: [authorId], references: [id])
+  mentions Mention[]
+}
+
+model Mention {
+  id        Int @id @default(autoincrement())
+  commentId Int
+  userId    Int
+
+  comment Comment @relation(fields: [commentId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([commentId, userId])
+}
+
+model Attachment {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  filename  String
+  mimetype  String
+  size      Int
+  path      String
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+}
+
+model AuditLog {
+  id        Int         @id @default(autoincrement())
+  action    AuditAction
+  entity    String
+  entityId  Int?
+  actorId   Int?
+  actorType String      @default("USER")
+  details   Json?
+  createdAt DateTime    @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+}
+
+model TokenDenyList {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
 }
