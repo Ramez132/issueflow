@@ -40,7 +40,7 @@ describe('AuthService', () => {
       mockPrisma.auditLog.create.mockResolvedValue({});
 
       const result = await service.login('ramez', 'password123');
-      expect(result.access_token).toBe('mock_token');
+      expect(result.accessToken).toBe('mock_token');
     });
 
     it('should throw if user not found', async () => {

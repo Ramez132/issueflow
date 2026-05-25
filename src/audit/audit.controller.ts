@@ -4,13 +4,13 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AuditAction } from '@prisma/client';
 
 @UseGuards(JwtAuthGuard)
-@Controller('audit')
+@Controller('audit-logs')
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
   @Get()
   findAll(
-    @Query('entity') entity?: string,
+    @Query('entityType') entity?: string,
     @Query('actorId') actorId?: string,
     @Query('action') action?: AuditAction,
   ) {
